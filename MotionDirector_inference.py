@@ -279,6 +279,3 @@ if __name__ == "__main__":
         noise_prior=args.noise_prior,
         repeat_num=args.repeat_num
     )
-
-
-
