@@ -24,7 +24,6 @@ from accelerate import Accelerator
 from accelerate.logging import get_logger
 from accelerate.utils import set_seed
 
-from diffusers import PreTrainedModel
 from models.unet_3d_condition import UNet3DConditionModel
 from diffusers.models import AutoencoderKL
 from diffusers import DDIMScheduler, TextToVideoSDPipeline
@@ -33,6 +32,7 @@ from diffusers.utils.import_utils import is_xformers_available
 from diffusers.models.attention_processor import AttnProcessor2_0, Attention
 from diffusers.models.attention import BasicTransformerBlock
 
+from transformers import PreTrainedModel
 from transformers import CLIPTextModel, CLIPTokenizer
 from transformers.models.clip.modeling_clip import CLIPEncoder
 from utils.dataset import VideoJsonDataset, SingleVideoDataset, \
