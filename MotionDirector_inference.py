@@ -87,13 +87,14 @@ def prepare_input_latents(
     height: int,
     width: int,
     latents_path:str,
-    noise_prior: float
+    noise_prior: float,
+    device: str
 ):
     # initialize with random gaussian noise
     scale = pipe.vae_scale_factor
     shape = (batch_size, pipe.unet.config.in_channels, num_frames, height // scale, width // scale)
     if noise_prior > 0.:
-        cached_latents = torch.load(latents_path)
+        cached_latents = torch.load(latents_path, map_location=torch.device(device))
         if 'inversion_noise' not in cached_latents:
             latents = inverse_video(pipe, cached_latents['latents'].unsqueeze(0), 50).squeeze(0)
         else:
@@ -172,7 +173,8 @@ def inference(
                 height=height,
                 width=width,
                 latents_path=latents_path,
-                noise_prior=noise_prior
+                noise_prior=noise_prior,
+                device=device
             )
 
             with torch.no_grad():
