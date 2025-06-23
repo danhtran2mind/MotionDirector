@@ -105,11 +105,42 @@ def extend_datasets(datasets, dataset_items, extend=False):
                     extended.append(item)
 
 
-def export_to_video(video_frames, output_video_path, fps):
-    video_writer = imageio.get_writer(output_video_path, fps=fps)
-    for img in video_frames:
-        video_writer.append_data(np.array(img))
-    video_writer.close()
+# def export_to_video(video_frames, output_video_path, fps):
+#     video_writer = imageio.get_writer(output_video_path, fps=fps)
+#     for img in video_frames:
+#         video_writer.append_data(np.array(img))
+#     video_writer.close()
+
+def export_to_video(video_frames, output_path, fps):
+    # Ensure video_frames is a list or tensor of shape (batch_size, num_frames, channels, height, width)
+    if isinstance(video_frames, torch.Tensor):
+        video_frames = video_frames.cpu().numpy()  # Convert tensor to NumPy
+    elif isinstance(video_frames, list):
+        video_frames = np.array(video_frames)
+
+    # Check shape and adjust if necessary
+    if len(video_frames.shape) == 5:  # (batch_size, num_frames, channels, height, width)
+        video_frames = video_frames[0]  # Take first batch if batch_size > 1
+    if video_frames.shape[1] == 3 or video_frames.shape[1] == 4:  # Channels in second dim (num_frames, channels, height, width)
+        video_frames = video_frames.transpose(0, 2, 3, 1)  # Reshape to (num_frames, height, width, channels)
+
+    # Ensure pixel values are in [0, 255] and uint8
+    if video_frames.max() <= 1.0:
+        video_frames = (video_frames * 255).astype(np.uint8)
+    else:
+        video_frames = video_frames.astype(np.uint8)
+
+    # Ensure exactly 3 channels (RGB)
+    if video_frames.shape[-1] == 4:  # If RGBA, drop alpha channel
+        video_frames = video_frames[..., :3]
+    elif video_frames.shape[-1] == 1:  # If grayscale, convert to RGB
+        video_frames = np.repeat(video_frames, 3, axis=-1)
+
+    # Write video
+    writer = imageio.get_writer(output_path, fps=fps, codec='libx264')
+    for frame in video_frames:
+        writer.append_data(frame)
+    writer.close()
 
 
 def create_output_folders(output_dir, config):
