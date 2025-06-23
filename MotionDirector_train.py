@@ -154,15 +154,23 @@ def create_output_folders(output_dir, config):
     return out_dir
 
 
+# def load_primary_models(pretrained_model_path):
+#     noise_scheduler = DDIMScheduler.from_pretrained(pretrained_model_path, subfolder="scheduler")
+#     tokenizer = CLIPTokenizer.from_pretrained(pretrained_model_path, subfolder="tokenizer")
+#     text_encoder = CLIPTextModel.from_pretrained(pretrained_model_path, subfolder="text_encoder")
+#     vae = AutoencoderKL.from_pretrained(pretrained_model_path, subfolder="vae")
+#     unet = UNet3DConditionModel.from_pretrained(pretrained_model_path, subfolder="unet")
+
+#     return noise_scheduler, tokenizer, text_encoder, vae, unet
+
 def load_primary_models(pretrained_model_path):
     noise_scheduler = DDIMScheduler.from_pretrained(pretrained_model_path, subfolder="scheduler")
     tokenizer = CLIPTokenizer.from_pretrained(pretrained_model_path, subfolder="tokenizer")
     text_encoder = CLIPTextModel.from_pretrained(pretrained_model_path, subfolder="text_encoder")
     vae = AutoencoderKL.from_pretrained(pretrained_model_path, subfolder="vae")
     unet = UNet3DConditionModel.from_pretrained(pretrained_model_path, subfolder="unet")
-
+    print("UNet architecture:", unet)  # Debug print
     return noise_scheduler, tokenizer, text_encoder, vae, unet
-
 
 # def unet_and_text_g_c(unet, text_encoder, unet_enable, text_enable):
 #     unet._set_gradient_checkpointing(value=unet_enable)
