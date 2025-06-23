@@ -169,7 +169,7 @@ def load_primary_models(pretrained_model_path):
     text_encoder = CLIPTextModel.from_pretrained(pretrained_model_path, subfolder="text_encoder")
     vae = AutoencoderKL.from_pretrained(pretrained_model_path, subfolder="vae")
     unet = UNet3DConditionModel.from_pretrained(pretrained_model_path, subfolder="unet")
-    print("UNet architecture:", unet)  # Debug print
+    # print("UNet architecture:", unet)  # Debug print
     return noise_scheduler, tokenizer, text_encoder, vae, unet
 
 # def unet_and_text_g_c(unet, text_encoder, unet_enable, text_enable):
@@ -178,9 +178,15 @@ def load_primary_models(pretrained_model_path):
 
 def unet_and_text_g_c(unet, text_encoder, unet_enable, text_enable):
     if hasattr(unet, '_set_gradient_checkpointing'):
+        print("unet._set_gradient_checkpointing(unet_enable)")
         unet._set_gradient_checkpointing(unet_enable)
+    else:
+        print("NO unet._set_gradient_checkpointing(unet_enable)")
+        
     if hasattr(text_encoder, '_set_gradient_checkpointing'):
         text_encoder._set_gradient_checkpointing(text_enable)
+    else:
+        print("NO text_encoder._set_gradient_checkpointing(text_enable)")
 
 def freeze_models(models_to_freeze):
     for model in models_to_freeze:
