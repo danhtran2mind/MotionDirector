@@ -285,35 +285,38 @@ def negate_params(name, negation):
 #                 optimizer_params.append(params)
 
 #     return optimizer_params
-    
+
 def create_optimizer_params(model_list, lr):
     optimizer_params = []
     for optim in model_list:
         model, condition, extra_params, is_lora, negation = optim.values()
-        # Case 1: LoRA training with a list of parameters
+        print(f"Optimizing model: {model}, is_lora: {is_lora}, condition: {condition}")
         if is_lora and condition and isinstance(model, list):
             params = create_optim_params(
                 params=itertools.chain(*model),
                 extra_params=extra_params
             )
+            print(f"LoRA params: {params}")
             optimizer_params.append(params)
             continue
-        # Case 2: LoRA training with a single model
+            
         if is_lora and condition and not isinstance(model, list):
             for n, p in model.named_parameters():
                 if 'lora' in n:
                     params = create_optim_params(n, p, lr, extra_params)
                     optimizer_params.append(params)
             continue
-        # Case 3: Non-LoRA training
+
+        # If this is true, we can train it.
         if condition:
             for n, p in model.named_parameters():
                 should_negate = 'lora' in n and not is_lora
                 if should_negate: continue
+
                 params = create_optim_params(n, p, lr, extra_params)
                 optimizer_params.append(params)
-    return optimizer_params
 
+    return optimizer_params
 
 def get_optimizer(use_8bit_adam):
     if use_8bit_adam:
