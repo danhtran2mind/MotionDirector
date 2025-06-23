@@ -679,9 +679,15 @@ def main(
         # one temporal lora
         lora_manager_temporal = LoraHandler(use_unet_lora=use_unet_lora, unet_replace_modules=["TransformerTemporalModel"])
 
+        # unet_lora_params_temporal, unet_negation_temporal = lora_manager_temporal.add_lora_to_model(
+        #     use_unet_lora, unet, lora_manager_temporal.unet_replace_modules, lora_unet_dropout,
+        #     lora_path + '/temporal/lora/', r=lora_rank)
+
         unet_lora_params_temporal, unet_negation_temporal = lora_manager_temporal.add_lora_to_model(
-            use_unet_lora, unet, lora_manager_temporal.unet_replace_modules, lora_unet_dropout,
+        use_unet_lora, unet, lora_manager_temporal.unet_replace_modules, lora_unet_dropout,
             lora_path + '/temporal/lora/', r=lora_rank)
+        print(f"Temporal LoRA params: {unet_lora_params_temporal}")
+        print(f"Temporal negation: {unet_negation_temporal}")
 
         optimizer_temporal = optimizer_cls(
             create_optimizer_params([param_optim(unet_lora_params_temporal, use_unet_lora, is_lora=True,
