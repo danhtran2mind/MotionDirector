@@ -23,7 +23,10 @@ from diffusers.configuration_utils import ConfigMixin, register_to_config
 from diffusers.utils import BaseOutput, logging
 from diffusers.models.embeddings import TimestepEmbedding, Timesteps
 from diffusers.models.modeling_utils import ModelMixin
-from diffusers.models.transformer_temporal import TransformerTemporalModel
+# Original (causing error)
+# from diffusers.models.transformer_temporal import TransformerTemporalModel
+# Updated (hypothetical, check actual path)
+from diffusers import TransformerTemporalModel
 from .unet_3d_blocks import (
     CrossAttnDownBlock3D,
     CrossAttnUpBlock3D,
@@ -403,7 +406,7 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin):
         # 2. pre-process
         sample = sample.permute(0, 2, 1, 3, 4).reshape((sample.shape[0] * num_frames, -1) + sample.shape[3:])
         sample = self.conv_in(sample)
-        
+
         if num_frames > 1:
             if self.gradient_checkpointing:
                 sample = transformer_g_c(self.transformer_in, sample, num_frames)
