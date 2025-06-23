@@ -291,7 +291,18 @@ def create_optimizer_params(model_list, lr):
 
                 params = create_optim_params(n, p, lr, extra_params)
                 optimizer_params.append(params)
-
+        # Fallback if optimizer_params is empty
+        if not optimizer_params:
+            print("Error: No parameters to optimize. Creating a dummy parameter to prevent optimizer failure.")
+            # Create a dummy parameter (single scalar tensor) to allow the optimizer to initialize
+            dummy_param = torch.nn.Parameter(torch.zeros(1, requires_grad=True))
+            optimizer_params.append(create_optim_params(
+                name="dummy_param",
+                params=[dummy_param],
+                lr=lr,
+                extra_params=extra_params or {}
+            ))
+        
     return optimizer_params
 
 # def create_optimizer_params(model_list, lr):
