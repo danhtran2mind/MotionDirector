@@ -24,6 +24,7 @@ from accelerate import Accelerator
 from accelerate.logging import get_logger
 from accelerate.utils import set_seed
 
+from diffusers import PreTrainedModel
 from models.unet_3d_condition import UNet3DConditionModel
 from diffusers.models import AutoencoderKL
 from diffusers import DDIMScheduler, TextToVideoSDPipeline
@@ -132,10 +133,15 @@ def load_primary_models(pretrained_model_path):
     return noise_scheduler, tokenizer, text_encoder, vae, unet
 
 
-def unet_and_text_g_c(unet, text_encoder, unet_enable, text_enable):
-    unet._set_gradient_checkpointing(value=unet_enable)
-    text_encoder._set_gradient_checkpointing(CLIPEncoder, value=text_enable)
+# def unet_and_text_g_c(unet, text_encoder, unet_enable, text_enable):
+#     unet._set_gradient_checkpointing(value=unet_enable)
+#     text_encoder._set_gradient_checkpointing(CLIPEncoder, value=text_enable)
 
+def unet_and_text_g_c(unet, text_encoder, unet_enable, text_enable):
+    if hasattr(unet, '_set_gradient_checkpointing'):
+        unet._set_gradient_checkpointing(unet_enable)
+    if hasattr(text_encoder, '_set_gradient_checkpointing'):
+        text_encoder._set_gradient_checkpointing(text_enable)
 
 def freeze_models(models_to_freeze):
     for model in models_to_freeze:
