@@ -23,4 +23,3 @@ triton
 compel
 peft>=0.15.0
 pytorch_lightning>=2.5.0
-torch-xla
