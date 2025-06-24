@@ -43,6 +43,16 @@ from utils.ddim_utils import ddim_inversion
 import imageio
 import numpy as np
 
+import torch_xla.core.xla_model as xm
+
+# Check for device availability
+try:
+    DEVICE = "cuda" if torch.cuda.is_available() else xm.xla_device() if xm.xla_device() else "cpu"
+except Exception:
+    DEVICE = "cpu"
+    
+# Set torch_dtype based on device
+torch_dtype = torch.float16 if device == "cuda" else torch.float32
 
 already_printed_trainables = False
 
@@ -306,15 +316,15 @@ def handle_cache_latents(
     # Cache latents by storing them in VRAM.
     # Speeds up training and saves memory by not encoding during the train loop.
     if not should_cache: return None
-    vae.to('cuda', dtype=torch.float16)
+    vae.to('DEVICE', dtype=torch_dtype)
     vae.enable_slicing()
 
     pipe = TextToVideoSDPipeline.from_pretrained(
         pretrained_model_path,
         vae=vae,
-        unet=copy.deepcopy(unet).to('cuda', dtype=torch.float16)
+        unet=copy.deepcopy(unet).to('DEVICE', dtype=torch_dtype)
     )
-    pipe.text_encoder.to('cuda', dtype=torch.float16)
+    pipe.text_encoder.to('DEVICE', dtype=torch_dtype)
 
     cached_latent_dir = (
         os.path.abspath(cached_latent_dir) if cached_latent_dir is not None else None
@@ -329,7 +339,7 @@ def handle_cache_latents(
             save_name = f"cached_{i}"
             full_out_path = f"{cache_save_dir}/{save_name}.pt"
 
-            pixel_values = batch['pixel_values'].to('cuda', dtype=torch.float16)
+            pixel_values = batch['pixel_values'].to('DEVICE', dtype=torch_dtype)
             batch['latents'] = tensor_to_vae_latent(pixel_values, vae)
             if noise_prior > 0.:
                 batch['inversion_noise'] = inverse_video(pipe, batch['latents'], 50)
@@ -340,7 +350,10 @@ def handle_cache_latents(
             del batch
 
             # We do this to avoid fragmentation from casting latents between devices.
-            torch.cuda.empty_cache()
+            if DEVICE == "cuda":
+                torch.cuda.empty_cache()
+            elif DEVICE == "xla:0":
+                xm.mark_step()
     else:
         cache_save_dir = cached_latent_dir
 
@@ -485,7 +498,10 @@ def save_pipe(
     del pipeline
     del unet_out
     del text_encoder_out
-    torch.cuda.empty_cache()
+    if DEVICE == "cuda":
+        torch.cuda.empty_cache()
+    elif DEVICE == "xla:0":
+        xm.mark_step()
     gc.collect()
 
 
@@ -1005,7 +1021,10 @@ def main(
                                 export_to_video(video_frames, out_file, train_data.get('fps', 8))
                                 logger.info(f"Saved a new sample to {out_file}")
                             del pipeline
-                            torch.cuda.empty_cache()
+                            if DEVICE == "cuda":
+                                torch.cuda.empty_cache()
+                            elif DEVICE == "xla:0":
+                                xm.mark_step()
 
                     unet_and_text_g_c(
                         unet,
