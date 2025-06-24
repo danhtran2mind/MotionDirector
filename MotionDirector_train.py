@@ -444,7 +444,7 @@ def handle_cache_latents(
             # We do this to avoid fragmentation from casting latents between devices.
             if DEVICE == "cuda":
                 torch.cuda.empty_cache()
-            elif DEVICE == "xla:0":
+            elif "xla" in DEVICE:
                 xm.mark_step()
     else:
         cache_save_dir = cached_latent_dir
@@ -592,7 +592,7 @@ def save_pipe(
     del text_encoder_out
     if DEVICE == "cuda":
         torch.cuda.empty_cache()
-    elif DEVICE == "xla:0":
+    elif "xla" in DEVICE:
         xm.mark_step()
     gc.collect()
 
@@ -1121,7 +1121,7 @@ def main(
                             del pipeline
                             if DEVICE == "cuda":
                                 torch.cuda.empty_cache()
-                            elif DEVICE == "xla:0":
+                            elif "xla" in DEVICE:
                                 xm.mark_step()
 
                     unet_and_text_g_c(
