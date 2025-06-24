@@ -46,14 +46,14 @@ import numpy as np
 
 import torch_xla.core.xla_model as xm
 
-# Check for device availability
+# Check for DEVICE availability
 try:
     DEVICE = "cuda" if torch.cuda.is_available() else xm.xla_device() if xm.xla_device() else "cpu"
 except Exception:
     DEVICE = "cpu"
     
 # Set torch_dtype based on device
-torch_dtype = torch.float16 if device == "cuda" else torch.float32
+torch_dtype = torch.float16 if DEVICE == "cuda" else torch.float32
 
 already_printed_trainables = False
 
