@@ -388,7 +388,7 @@ def _find_modules_old(
             for name, _child_module in _module.named_modules():
                 if _child_module.__class__ in search_class:
                     ret.append((_module, name, _child_module))
-    print(ret)
+    # print(ret)
     return ret
 
 
@@ -1273,7 +1273,7 @@ def apply_learned_embed_in_clip(
         trained_tokens = list(learned_embeds.keys())
 
     for token in trained_tokens:
-        print(token)
+        # print(token)
         embeds = learned_embeds[token]
 
         # cast to dtype of text_encoder
