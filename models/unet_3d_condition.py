@@ -24,8 +24,6 @@ from diffusers.utils import BaseOutput, logging
 from diffusers.models.embeddings import TimestepEmbedding, Timesteps
 from diffusers.models.modeling_utils import ModelMixin
 # Original (causing error)
-# from diffusers.models.transformer_temporal import TransformerTemporalModel
-# Updated (hypothetical, check actual path)
 from diffusers import TransformerTemporalModel
 from .unet_3d_blocks import (
     CrossAttnDownBlock3D,
@@ -37,7 +35,6 @@ from .unet_3d_blocks import (
     get_up_block,
     transformer_g_c
 )
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
