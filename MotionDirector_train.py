@@ -43,16 +43,8 @@ from utils.ddim_utils import ddim_inversion
 import imageio
 import numpy as np
 
-import torch_xla.core.xla_model as xm
-
-# Check for device availability
-try:
-    DEVICE = "cuda" if torch.cuda.is_available() else xm.xla_device() if xm.xla_device() else "cpu"
-except Exception:
-    DEVICE = "cpu"
-    
-# Set torch_dtype based on device
-torch_dtype = torch.float16 if device == "cuda" else torch.float32
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+torch_dtype = torch.float16 if DEVICE == "cuda" else torch.float32
 
 already_printed_trainables = False
 
@@ -113,12 +105,36 @@ def extend_datasets(datasets, dataset_items, extend=False):
                     print(f"New {item} dataset length: {dataset.__len__()}")
                     extended.append(item)
 
+def export_to_video(video_frames, output_path, fps):
+    # Ensure video_frames is a list or tensor of shape (batch_size, num_frames, channels, height, width)
+    if isinstance(video_frames, torch.Tensor):
+        video_frames = video_frames.cpu().numpy()  # Convert tensor to NumPy
+    elif isinstance(video_frames, list):
+        video_frames = np.array(video_frames)
 
-def export_to_video(video_frames, output_video_path, fps):
-    video_writer = imageio.get_writer(output_video_path, fps=fps)
-    for img in video_frames:
-        video_writer.append_data(np.array(img))
-    video_writer.close()
+    # Check shape and adjust if necessary
+    if len(video_frames.shape) == 5:  # (batch_size, num_frames, channels, height, width)
+        video_frames = video_frames[0]  # Take first batch if batch_size > 1
+    if video_frames.shape[1] == 3 or video_frames.shape[1] == 4:  # Channels in second dim (num_frames, channels, height, width)
+        video_frames = video_frames.transpose(0, 2, 3, 1)  # Reshape to (num_frames, height, width, channels)
+
+    # Ensure pixel values are in [0, 255] and uint8
+    if video_frames.max() <= 1.0:
+        video_frames = (video_frames * 255).astype(np.uint8)
+    else:
+        video_frames = video_frames.astype(np.uint8)
+
+    # Ensure exactly 3 channels (RGB)
+    if video_frames.shape[-1] == 4:  # If RGBA, drop alpha channel
+        video_frames = video_frames[..., :3]
+    elif video_frames.shape[-1] == 1:  # If grayscale, convert to RGB
+        video_frames = np.repeat(video_frames, 3, axis=-1)
+
+    # Write video
+    writer = imageio.get_writer(output_path, fps=fps, codec='libx264')
+    for frame in video_frames:
+        writer.append_data(frame)
+    writer.close()
 
 
 def create_output_folders(output_dir, config):
@@ -141,11 +157,17 @@ def load_primary_models(pretrained_model_path):
 
     return noise_scheduler, tokenizer, text_encoder, vae, unet
 
-
 def unet_and_text_g_c(unet, text_encoder, unet_enable, text_enable):
-    unet._set_gradient_checkpointing(value=unet_enable)
-    text_encoder._set_gradient_checkpointing(CLIPEncoder, value=text_enable)
-
+    if hasattr(unet, '_set_gradient_checkpointing'):
+        print("unet._set_gradient_checkpointing(unet_enable)")
+        unet._set_gradient_checkpointing(unet_enable)
+    else:
+        print("NO unet._set_gradient_checkpointing(unet_enable)")
+        
+    if hasattr(text_encoder, '_set_gradient_checkpointing'):
+        text_encoder._set_gradient_checkpointing(text_enable)
+    else:
+        print("NO text_encoder._set_gradient_checkpointing(text_enable)")
 
 def freeze_models(models_to_freeze):
     for model in models_to_freeze:
@@ -316,15 +338,15 @@ def handle_cache_latents(
     # Cache latents by storing them in VRAM.
     # Speeds up training and saves memory by not encoding during the train loop.
     if not should_cache: return None
-    vae.to('DEVICE', dtype=torch_dtype)
+    vae.to(DEVICE, dtype=torch_dtype)
     vae.enable_slicing()
 
     pipe = TextToVideoSDPipeline.from_pretrained(
         pretrained_model_path,
         vae=vae,
-        unet=copy.deepcopy(unet).to('DEVICE', dtype=torch_dtype)
+        unet=copy.deepcopy(unet).to(DEVICE, dtype=torch_dtype)
     )
-    pipe.text_encoder.to('DEVICE', dtype=torch_dtype)
+    pipe.text_encoder.to(DEVICE, dtype=torch_dtype)
 
     cached_latent_dir = (
         os.path.abspath(cached_latent_dir) if cached_latent_dir is not None else None
@@ -339,7 +361,7 @@ def handle_cache_latents(
             save_name = f"cached_{i}"
             full_out_path = f"{cache_save_dir}/{save_name}.pt"
 
-            pixel_values = batch['pixel_values'].to('DEVICE', dtype=torch_dtype)
+            pixel_values = batch['pixel_values'].to(DEVICE, dtype=torch_dtype
             batch['latents'] = tensor_to_vae_latent(pixel_values, vae)
             if noise_prior > 0.:
                 batch['inversion_noise'] = inverse_video(pipe, batch['latents'], 50)
@@ -350,10 +372,7 @@ def handle_cache_latents(
             del batch
 
             # We do this to avoid fragmentation from casting latents between devices.
-            if DEVICE == "cuda":
-                torch.cuda.empty_cache()
-            elif DEVICE == "xla:0":
-                xm.mark_step()
+            torch.cuda.empty_cache()
     else:
         cache_save_dir = cached_latent_dir
 
@@ -498,10 +517,7 @@ def save_pipe(
     del pipeline
     del unet_out
     del text_encoder_out
-    if DEVICE == "cuda":
-        torch.cuda.empty_cache()
-    elif DEVICE == "xla:0":
-        xm.mark_step()
+    torch.cuda.empty_cache()
     gc.collect()
 
 
@@ -1021,10 +1037,7 @@ def main(
                                 export_to_video(video_frames, out_file, train_data.get('fps', 8))
                                 logger.info(f"Saved a new sample to {out_file}")
                             del pipeline
-                            if DEVICE == "cuda":
-                                torch.cuda.empty_cache()
-                            elif DEVICE == "xla:0":
-                                xm.mark_step()
+                            torch.cuda.empty_cache()
 
                     unet_and_text_g_c(
                         unet,
