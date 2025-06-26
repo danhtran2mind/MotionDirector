@@ -361,7 +361,7 @@ def handle_cache_latents(
             save_name = f"cached_{i}"
             full_out_path = f"{cache_save_dir}/{save_name}.pt"
 
-            pixel_values = batch['pixel_values'].to(DEVICE, dtype=torch_dtype
+            pixel_values = batch['pixel_values'].to(DEVICE, dtype=torch_dtype)
             batch['latents'] = tensor_to_vae_latent(pixel_values, vae)
             if noise_prior > 0.:
                 batch['inversion_noise'] = inverse_video(pipe, batch['latents'], 50)
