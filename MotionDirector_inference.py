@@ -66,7 +66,9 @@ def initialize_pipeline(
         unet=unet.to(device=device, dtype=torch.half),
     )
     pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
-
+    
+    # Explicitly set num_frames in pipeline configuration
+    pipe.unet.config.sample_duration = num_frames  # Add this line
     return pipe
 
 
@@ -159,7 +161,7 @@ def inference(
     with torch.autocast(device, dtype=torch.half):
         # prepare models
         pipe = initialize_pipeline(model, device, xformers, sdp, lora_path, lora_rank, lora_scale)
-
+        print("num_frames: ", num_frames)
         for i in range(repeat_num):
             if seed is None:
                 random_seed = random.randint(100, 10000000)
