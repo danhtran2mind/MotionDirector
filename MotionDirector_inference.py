@@ -81,20 +81,67 @@ def inverse_video(pipe, latents, num_steps):
     return ddim_inv_latent
 
 
+# def prepare_input_latents(
+#     pipe: TextToVideoSDPipeline,
+#     batch_size: int,
+#     num_frames: int,
+#     height: int,
+#     width: int,
+#     latents_path:str,
+#     noise_prior: float,
+#     device: str = "cuda"
+# ):
+#     # initialize with random gaussian noise
+#     scale = pipe.vae_scale_factor
+#     shape = (batch_size, pipe.unet.config.in_channels, num_frames, height // scale, width // scale)
+#     print("shape: ", shape)
+#     if noise_prior > 0.:
+#         cached_latents = torch.load(latents_path, map_location=torch.device(device))
+#         for key in cached_latents:
+#             try:
+#                 print(f"cached_latents Key: {key}, Value:\n{cached_latents[key].shape}\n")
+#             except:
+#                 print(f"cached_latents Key: {key}, Value:\n{cached_latents[key]}\n")
+#         if 'inversion_noise' not in cached_latents:
+#             latents = inverse_video(pipe, cached_latents['latents'].unsqueeze(0), 50).squeeze(0)
+#             print("latents1.shape: ", latents.shape)
+#         else:
+#             latents = torch.load(latents_path)['inversion_noise'].unsqueeze(0)
+#             print("latents2.shape: ", latents.shape)
+#         if latents.shape[0] != batch_size:
+#             latents = latents.repeat(batch_size, 1, 1, 1, 1)
+#             print("latents3.shape: ", latents.shape)
+#         if latents.shape != shape:
+#             latents = interpolate(rearrange(latents, "b c f h w -> (b f) c h w", b=batch_size), (height // scale, width // scale), mode='bilinear')
+#             print("latents4.shape: ", latents.shape)
+#             latents = rearrange(latents, "(b f) c h w -> b c f h w", b=batch_size)
+#             print("latents5.shape: ", latents.shape)
+#         noise = torch.randn_like(latents, dtype=torch.half)
+#         print("noise.shape: ", noise.shape)
+#         latents = (noise_prior) ** 0.5 * latents + (1 - noise_prior) ** 0.5 * noise
+#         print("latents.shape: ", latents.shape)
+#     else:
+#         latents = torch.randn(shape, dtype=torch.half)
+        
+#     print("latents.shape: ", latents.shape)
+    
+#     return latents
+
 def prepare_input_latents(
     pipe: TextToVideoSDPipeline,
     batch_size: int,
     num_frames: int,
     height: int,
     width: int,
-    latents_path:str,
+    latents_path: str,
     noise_prior: float,
     device: str = "cuda"
-):
-    # initialize with random gaussian noise
+) -> Tensor:
+    # Initialize with random gaussian noise
     scale = pipe.vae_scale_factor
     shape = (batch_size, pipe.unet.config.in_channels, num_frames, height // scale, width // scale)
     print("shape: ", shape)
+    
     if noise_prior > 0.:
         cached_latents = torch.load(latents_path, map_location=torch.device(device))
         for key in cached_latents:
@@ -102,31 +149,45 @@ def prepare_input_latents(
                 print(f"cached_latents Key: {key}, Value:\n{cached_latents[key].shape}\n")
             except:
                 print(f"cached_latents Key: {key}, Value:\n{cached_latents[key]}\n")
+        
         if 'inversion_noise' not in cached_latents:
             latents = inverse_video(pipe, cached_latents['latents'].unsqueeze(0), 50).squeeze(0)
             print("latents1.shape: ", latents.shape)
         else:
             latents = torch.load(latents_path)['inversion_noise'].unsqueeze(0)
             print("latents2.shape: ", latents.shape)
+        
         if latents.shape[0] != batch_size:
             latents = latents.repeat(batch_size, 1, 1, 1, 1)
             print("latents3.shape: ", latents.shape)
-        if latents.shape != shape:
-            latents = interpolate(rearrange(latents, "b c f h w -> (b f) c h w", b=batch_size), (height // scale, width // scale), mode='bilinear')
+        
+        # Adjust num_frames if necessary
+        if latents.shape[2] != num_frames:
+            # Rearrange to (batch, channels, height, width, frames) for temporal interpolation
+            latents = rearrange(latents, "b c f h w -> b c h w f")
+            # Interpolate along the frame dimension
+            latents = interpolate(latents, size=(latents.shape[2], latents.shape[3], num_frames), mode='trilinear', align_corners=False)
+            # Rearrange back to (batch, channels, frames, height, width)
+            latents = rearrange(latents, "b c h w f -> b c f h w")
+            print("latents_temporal.shape: ", latents.shape)
+        
+        if latents.shape[3:] != shape[3:]:
+            # Spatial interpolation
+            latents = interpolate(rearrange(latents, "b c f h w -> (b f) c h w", b=batch_size), 
+                                size=(height // scale, width // scale), mode='bilinear')
             print("latents4.shape: ", latents.shape)
             latents = rearrange(latents, "(b f) c h w -> b c f h w", b=batch_size)
             print("latents5.shape: ", latents.shape)
-        noise = torch.randn_like(latents, dtype=torch.half)
+        
+        noise = torch.randn_like(latents, dtype=torch.float16)
         print("noise.shape: ", noise.shape)
-        latents = (noise_prior) ** 0.5 * latents + (1 - noise_prior) ** 0.5 * noise
+        latents = (noise_prior ** 0.5) * latents + ((1 - noise_prior) ** 0.5) * noise
         print("latents.shape: ", latents.shape)
     else:
-        latents = torch.randn(shape, dtype=torch.half)
-        
-    print("latents.shape: ", latents.shape)
+        latents = torch.randn(shape, dtype=torch.float16)
+        print("latents.shape: ", latents.shape)
     
     return latents
-
 
 def encode(pipe: TextToVideoSDPipeline, pixels: Tensor, batch_size: int = 8):
     nf = pixels.shape[2]
