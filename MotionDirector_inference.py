@@ -180,7 +180,7 @@ def inference(
                 noise_prior=noise_prior,
                 device=device
             )
-            print("num_steps: ", num_steps)
+            
             with torch.no_grad():
                 video_frames = pipe(
                     prompt=prompt,
@@ -235,7 +235,7 @@ if __name__ == "__main__":
     parser.add_argument("-ls", "--lora_scale", type=float, default=1.0, help="Scale of LoRAs.")
     parser.add_argument("-r", "--seed", type=int, default=None, help="Random seed to make generations reproducible.")
     parser.add_argument("-np", "--noise_prior", type=float, default=0., help="Scale of the influence of inversion noise.")
-    parser.add_argument("-ci", "--checkpoint_index", type=int, required=True,
+    parser.add_argument("-ci", "--checkpoint_index", type=int, required=False, default=None,
                         help="The index of checkpoint, such as 300.")
     parser.add_argument("-rn", "--repeat_num", type=int, default=1,
                         help="How many results to generate with the same prompt.")
@@ -258,8 +258,11 @@ if __name__ == "__main__":
     # =========================================
     # ============= sample videos =============
     # =========================================
-
-    lora_path = f"{args.checkpoint_folder}/checkpoint-{args.checkpoint_index}/temporal/lora"
+    if args.checkpoint_index:
+        lora_path = f"{args.checkpoint_folder}/checkpoint-{args.checkpoint_index}/temporal/lora"
+    else:
+        lora_path = f"{args.checkpoint_folder}/temporal/lora"
+        
     latents_folder = f"{args.checkpoint_folder}/cached_latents"
     latents_path = f"{latents_folder}/{random.choice(os.listdir(latents_folder))}"
     assert os.path.exists(lora_path)
