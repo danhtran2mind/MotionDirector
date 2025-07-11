@@ -195,9 +195,9 @@ def inference(
                 ).frames
             all_video_frames.append(video_frames)
         
-        # Concatenate all segments
-        video_frames = torch.cat(all_video_frames, dim=1)  # Concatenate along frame dimension
-        print("Final video_frames.shape:", video_frames.shape)
+            # Concatenate all segments
+            video_frames = torch.cat(all_video_frames, dim=1)  # Concatenate along frame dimension
+            print("Final video_frames.shape:", video_frames.shape)
             # =========================================
             # ========= write outputs to file =========
             # =========================================
