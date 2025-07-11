@@ -163,7 +163,7 @@ def inference(
     with torch.autocast(device, dtype=torch.half):
         # prepare models
         pipe = initialize_pipeline(model, device, xformers, sdp, lora_path, lora_rank, lora_scale)
-        print("num_frames: ", num_frames)
+        
         for i in range(repeat_num):
             if seed is None:
                 random_seed = random.randint(100, 10000000)
