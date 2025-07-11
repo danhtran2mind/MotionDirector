@@ -70,7 +70,7 @@ def initialize_pipeline(
     pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
     
     # Explicitly set num_frames in pipeline configuration
-    pipe.unet.config.sample_duration = num_frames
+    # pipe.unet.config.sample_duration = num_frames
     return pipe
 
 
