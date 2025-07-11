@@ -156,8 +156,8 @@ def inference(
     repeat_num: int = 1,
 ):
     if seed is not None:
-            random_seed = seed
-            torch.manual_seed(seed)
+        random_seed = seed
+        torch.manual_seed(seed)
 
     with torch.autocast(device, dtype=torch.half):
         pipe = initialize_pipeline(model, device, xformers, sdp, lora_path, lora_rank, lora_scale)
@@ -193,8 +193,11 @@ def inference(
                     guidance_scale=guidance_scale,
                     latents=init_latents
                 ).frames
-            all_video_frames.append(video_frames)
-        
+                # Convert NumPy array to PyTorch tensor if necessary
+                if isinstance(video_frames, np.ndarray):
+                    video_frames = torch.from_numpy(video_frames).to(dtype=torch.float16, device=device)
+                all_video_frames.append(video_frames)
+            
             # Concatenate all segments
             video_frames = torch.cat(all_video_frames, dim=1)  # Concatenate along frame dimension
             print("Final video_frames.shape:", video_frames.shape)
