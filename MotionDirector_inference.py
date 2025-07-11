@@ -199,20 +199,20 @@ def inference(
                     video_frames = torch.from_numpy(video_frames).to(dtype=torch.float16, device=device)
                 all_video_frames.append(video_frames)
             
-            # Concatenate all segments
-            video_frames = torch.cat(all_video_frames, dim=1)  # Concatenate along frame dimension
-            print("Final video_frames.shape:", video_frames.shape)
-            # =========================================
-            # ========= write outputs to file =========
-            # =========================================
-            os.makedirs(args.output_dir, exist_ok=True)
+        # Concatenate all segments
+        video_frames = torch.cat(all_video_frames, dim=1)  # Concatenate along frame dimension
+        print("Final video_frames.shape:", video_frames.shape)
+        # =========================================
+        # ========= write outputs to file =========
+        # =========================================
+        os.makedirs(args.output_dir, exist_ok=True)
 
-            # save to mp4
-            export_to_video(video_frames, f"{out_name}_{random_seed}.mp4", args.fps)
+        # save to mp4
+        export_to_video(video_frames, f"{out_name}_{random_seed}.mp4", args.fps)
 
-            # # save to gif
-            # file_name = f"{out_name}_{random_seed}.gif"
-            # imageio.mimsave(file_name, video_frames, 'GIF', duration=1000 * 1 / args.fps, loop=0)
+        # # save to gif
+        # file_name = f"{out_name}_{random_seed}.gif"
+        # imageio.mimsave(file_name, video_frames, 'GIF', duration=1000 * 1 / args.fps, loop=0)
 
     return video_frames
 
