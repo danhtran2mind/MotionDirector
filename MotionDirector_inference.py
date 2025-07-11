@@ -161,21 +161,19 @@ def inference(
         torch.manual_seed(seed)
 
     with torch.autocast(device, dtype=torch.half):
+        # prepare models
         pipe = initialize_pipeline(model, device, xformers, sdp, lora_path, lora_rank, lora_scale)
-        max_frames = 16  # Model's max frame limit
-        total_frames = num_frames
-        all_video_frames = []
-        
-        for i in range((total_frames + max_frames - 1) // max_frames):  # Ceiling division
-            current_frames = min(max_frames, total_frames - i * max_frames)
+        print("num_frames: ", num_frames)
+        for i in range(repeat_num):
             if seed is None:
                 random_seed = random.randint(100, 10000000)
                 torch.manual_seed(random_seed)
-            
+
+            # prepare input latents
             init_latents = prepare_input_latents(
                 pipe=pipe,
                 batch_size=len(prompt),
-                num_frames=current_frames,  # Use current_frames
+                num_frames=num_frames,
                 height=height,
                 width=width,
                 latents_path=latents_path,
@@ -189,30 +187,23 @@ def inference(
                     negative_prompt=negative_prompt,
                     width=width,
                     height=height,
-                    num_frames=current_frames,  # Use current_frames
+                    num_frames=num_frames,
                     num_inference_steps=num_steps,
                     guidance_scale=guidance_scale,
                     latents=init_latents
                 ).frames
-                # Convert NumPy array to PyTorch tensor if necessary
-                if isinstance(video_frames, np.ndarray):
-                    video_frames = torch.from_numpy(video_frames).to(dtype=torch.float16, device=device)
-                all_video_frames.append(video_frames)
-            
-        # Concatenate all segments
-        video_frames = torch.cat(all_video_frames, dim=1)  # Concatenate along frame dimension
-        print("Final video_frames.shape:", video_frames.shape)
-        # =========================================
-        # ========= write outputs to file =========
-        # =========================================
-        os.makedirs(args.output_dir, exist_ok=True)
+                
+            # =========================================
+            # ========= write outputs to file =========
+            # =========================================
+            os.makedirs(args.output_dir, exist_ok=True)
 
-        # save to mp4
-        export_to_video(video_frames, f"{out_name}_{random_seed}.mp4", args.fps)
+            # save to mp4
+            export_to_video(video_frames, f"{out_name}_{random_seed}.mp4", args.fps)
 
-        # # save to gif
-        # file_name = f"{out_name}_{random_seed}.gif"
-        # imageio.mimsave(file_name, video_frames, 'GIF', duration=1000 * 1 / args.fps, loop=0)
+            # # save to gif
+            # file_name = f"{out_name}_{random_seed}.gif"
+            # imageio.mimsave(file_name, video_frames, 'GIF', duration=1000 * 1 / args.fps, loop=0)
 
     return video_frames
 
