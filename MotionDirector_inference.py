@@ -97,7 +97,7 @@ def prepare_input_latents(
     if noise_prior > 0.:
         cached_latents = torch.load(latents_path, map_location=torch.device(device))
         for key in cached_latents:
-            print(f"cached_latents Key: {key}, Value:\n{abc[key].shape}\n")
+            print(f"cached_latents Key: {key}, Value:\n{cached_latents[key].shape}\n")
         if 'inversion_noise' not in cached_latents:
             latents = inverse_video(pipe, cached_latents['latents'].unsqueeze(0), 50).squeeze(0)
             print("latents1.shape: ", latents.shape)
