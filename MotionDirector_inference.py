@@ -156,24 +156,25 @@ def inference(
     repeat_num: int = 1,
 ):
     if seed is not None:
-        random_seed = seed
-        torch.manual_seed(seed)
+            random_seed = seed
+            torch.manual_seed(seed)
 
     with torch.autocast(device, dtype=torch.half):
-        # prepare models
-        pipe = initialize_pipeline(model, device, xformers, sdp, lora_path,
-                                   lora_rank, lora_scale, num_frames=num_frames)
-        print("num_frames: ", num_frames)
-        for i in range(repeat_num):
+        pipe = initialize_pipeline(model, device, xformers, sdp, lora_path, lora_rank, lora_scale)
+        max_frames = 16  # Model's max frame limit
+        total_frames = num_frames
+        all_video_frames = []
+        
+        for i in range((total_frames + max_frames - 1) // max_frames):  # Ceiling division
+            current_frames = min(max_frames, total_frames - i * max_frames)
             if seed is None:
                 random_seed = random.randint(100, 10000000)
                 torch.manual_seed(random_seed)
-
-            # prepare input latents
+            
             init_latents = prepare_input_latents(
                 pipe=pipe,
                 batch_size=len(prompt),
-                num_frames=num_frames,
+                num_frames=current_frames,  # Use current_frames
                 height=height,
                 width=width,
                 latents_path=latents_path,
@@ -187,12 +188,16 @@ def inference(
                     negative_prompt=negative_prompt,
                     width=width,
                     height=height,
-                    num_frames=num_frames,
+                    num_frames=current_frames,  # Use current_frames
                     num_inference_steps=num_steps,
                     guidance_scale=guidance_scale,
                     latents=init_latents
                 ).frames
-            print("video_frames.shape: ", video_frames.shape)
+            all_video_frames.append(video_frames)
+        
+        # Concatenate all segments
+        video_frames = torch.cat(all_video_frames, dim=1)  # Concatenate along frame dimension
+        print("Final video_frames.shape:", video_frames.shape)
             # =========================================
             # ========= write outputs to file =========
             # =========================================
