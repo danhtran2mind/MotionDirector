@@ -180,7 +180,7 @@ def inference(
                 noise_prior=noise_prior,
                 device=device
             )
-
+            print("num_steps: ", num_steps)
             with torch.no_grad():
                 video_frames = pipe(
                     prompt=prompt,
