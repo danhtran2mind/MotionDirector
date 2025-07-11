@@ -94,6 +94,7 @@ def prepare_input_latents(
     # initialize with random gaussian noise
     scale = pipe.vae_scale_factor
     shape = (batch_size, pipe.unet.config.in_channels, num_frames, height // scale, width // scale)
+    print("shape: ", shape)
     if noise_prior > 0.:
         cached_latents = torch.load(latents_path, map_location=torch.device(device))
         for key in cached_latents:
