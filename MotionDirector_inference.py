@@ -28,7 +28,6 @@ def initialize_pipeline(
     lora_path: str = "",
     lora_rank: int = 64,
     lora_scale: float = 1.0,
-    num_frames: int = 16
 ):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -68,9 +67,7 @@ def initialize_pipeline(
         unet=unet.to(device=device, dtype=torch.half),
     )
     pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
-    
-    # Explicitly set num_frames in pipeline configuration
-    # pipe.unet.config.sample_duration = num_frames
+
     return pipe
 
 
@@ -99,20 +96,30 @@ def prepare_input_latents(
     shape = (batch_size, pipe.unet.config.in_channels, num_frames, height // scale, width // scale)
     if noise_prior > 0.:
         cached_latents = torch.load(latents_path, map_location=torch.device(device))
+        print("cached_latents1.shape: ", cached_latents.shape)
         if 'inversion_noise' not in cached_latents:
             latents = inverse_video(pipe, cached_latents['latents'].unsqueeze(0), 50).squeeze(0)
+            print("latents1.shape: ", latents.shape)
         else:
             latents = torch.load(latents_path)['inversion_noise'].unsqueeze(0)
+            print("latents2.shape: ", latents.shape)
         if latents.shape[0] != batch_size:
             latents = latents.repeat(batch_size, 1, 1, 1, 1)
+            print("latents3.shape: ", latents.shape)
         if latents.shape != shape:
             latents = interpolate(rearrange(latents, "b c f h w -> (b f) c h w", b=batch_size), (height // scale, width // scale), mode='bilinear')
+            print("latents4.shape: ", latents.shape)
             latents = rearrange(latents, "(b f) c h w -> b c f h w", b=batch_size)
+            print("latents5.shape: ", latents.shape)
         noise = torch.randn_like(latents, dtype=torch.half)
+        print("noise.shape: ", noise.shape)
         latents = (noise_prior) ** 0.5 * latents + (1 - noise_prior) ** 0.5 * noise
+        print("latents.shape: ", latents.shape)
     else:
         latents = torch.randn(shape, dtype=torch.half)
-
+        
+    print("latents.shape: ", latents.shape)
+    
     return latents
 
 
