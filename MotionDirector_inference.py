@@ -27,6 +27,7 @@ def initialize_pipeline(
     lora_path: str = "",
     lora_rank: int = 64,
     lora_scale: float = 1.0,
+    num_frames: int = 16
 ):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -68,7 +69,7 @@ def initialize_pipeline(
     pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
     
     # Explicitly set num_frames in pipeline configuration
-    pipe.unet.config.sample_duration = num_frames  # Add this line
+    pipe.unet.config.sample_duration = num_frames
     return pipe
 
 
@@ -160,7 +161,8 @@ def inference(
 
     with torch.autocast(device, dtype=torch.half):
         # prepare models
-        pipe = initialize_pipeline(model, device, xformers, sdp, lora_path, lora_rank, lora_scale)
+        pipe = initialize_pipeline(model, device, xformers, sdp, lora_path,
+                                   lora_rank, lora_scale, num_frames=num_frames)
         print("num_frames: ", num_frames)
         for i in range(repeat_num):
             if seed is None:
