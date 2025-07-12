@@ -43,6 +43,22 @@ from utils.ddim_utils import ddim_inversion
 import imageio
 import numpy as np
 
+try:
+    import torch_xla
+    import torch_xla.core.xla_model as xm
+    xla_available = True
+except ImportError:
+    xla_available = False
+
+if torch.cuda.is_available():
+    DEVICE = "cuda"
+# Check for TPU (XLA device)
+elif xla_available:
+    DEVICE = xm.xla_device()
+# Fallback to CPU
+else:
+    DEVICE = "cpu"
+
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 torch_dtype = torch.float16 if DEVICE == "cuda" else torch.float32
 
