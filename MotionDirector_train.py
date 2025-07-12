@@ -59,7 +59,8 @@ elif xla_available:
 else:
     DEVICE = "cpu"
 
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+latents_device = "cpu" if DEVICE != "cuda" else "cuda"
+
 torch_dtype = torch.float16 if DEVICE == "cuda" else torch.float32
 
 already_printed_trainables = False
@@ -436,10 +437,10 @@ def tensor_to_vae_latent(t, vae):
 
 def sample_noise(latents, noise_strength, use_offset_noise=False):
     b, c, f, *_ = latents.shape
-    noise_latents = torch.randn_like(latents, device=DEVICE)
+    noise_latents = torch.randn_like(latents, device=latents_device)
 
     if use_offset_noise:
-        offset_noise = torch.randn(b, c, f, 1, 1, device=DEVICE)
+        offset_noise = torch.randn(b, c, f, 1, 1, device=latents_device)
         noise_latents = noise_latents + noise_strength * offset_noise
 
     return noise_latents
@@ -831,7 +832,7 @@ def main(
         bsz = latents.shape[0]
 
         # Sample a random timestep for each video
-        timesteps = torch.randint(0, noise_scheduler.config.num_train_timesteps, (bsz,), device=DEVICE)
+        timesteps = torch.randint(0, noise_scheduler.config.num_train_timesteps, (bsz,), device=latents_device)
         timesteps = timesteps.long()
 
         # Add noise to the latents according to the noise magnitude at each timestep
