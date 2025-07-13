@@ -32,3 +32,16 @@ def cast_to_gpu_and_type(model_list: List, accelerator, weight_dtype: torch.dtyp
     for model in model_list:
         if model is not None:
             model.to(accelerator.device, dtype=weight_dtype)
+
+def get_optimizer(use_8bit_adam):
+    if use_8bit_adam:
+        try:
+            import bitsandbytes as bnb
+        except ImportError:
+            raise ImportError(
+                "Please install bitsandbytes to use 8-bit Adam. You can do so by running `pip install bitsandbytes`"
+            )
+
+        return bnb.optim.AdamW8bit
+    else:
+        return torch.optim.AdamW

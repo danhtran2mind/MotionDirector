@@ -34,7 +34,8 @@ from utils.train_utils.model_utils import (
     cast_to_gpu_and_type
 )
 from utils.train_utils.optim_utils import (
-    get_optimizer, param_optim, 
+    get_optimizer, 
+    param_optim, 
     create_optimizer_params
 )
 from utils.train_utils.latent_utils import (
