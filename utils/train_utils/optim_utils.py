@@ -2,6 +2,11 @@ from typing import Optional, List
 import torch
 from diffusers.models.attention_processor import AttnProcessor2_0
 from diffusers.models.attention import BasicTransformerBlock
+import os
+import sys
+# Add the directory of the current file to sys.path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from utils.video_pipeline import load_primary_models, freeze_models, handle_memory_attention
 
 def is_attn(name: str) -> bool:

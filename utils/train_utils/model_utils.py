@@ -2,6 +2,7 @@ from typing import Optional, List
 import torch
 from diffusers.models.attention_processor import AttnProcessor2_0
 from diffusers.models.attention import BasicTransformerBlock
+
 from utils.video_pipeline import load_primary_models, freeze_models, handle_memory_attention
 
 def is_attn(name: str) -> bool:

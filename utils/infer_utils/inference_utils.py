@@ -2,6 +2,10 @@ import torch
 import random
 import os
 import imageio
+import sys
+# Add the directory of the current file to sys.path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from utils.video_pipeline import export_to_video
 
 def inference(

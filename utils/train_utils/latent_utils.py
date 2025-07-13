@@ -1,11 +1,15 @@
 import os
+import sys
 import torch
 from einops import rearrange
-from utils.ddim_utils import ddim_inversion
 from diffusers import TextToVideoSDPipeline, DDIMScheduler
-from utils.dataset import CachedDataset
 from tqdm.auto import tqdm
 import copy
+
+# Add the directory of the current file to sys.path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from utils.ddim_utils import ddim_inversion
+from utils.dataset import CachedDataset
 
 def tensor_to_vae_latent(t: torch.Tensor, vae) -> torch.Tensor:
     video_length = t.shape[1]

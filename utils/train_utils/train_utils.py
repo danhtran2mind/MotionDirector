@@ -3,11 +3,17 @@ import torch.nn.functional as F
 import random
 from torchvision import transforms
 from diffusers import DDIMScheduler, TextToVideoSDPipeline
-from utils.lora import extract_lora_child_module
-from utils.video_pipeline import export_to_video, unet_and_text_g_c
 import copy
 import math
 import gc
+
+import os
+import sys
+# Add the directory of the current file to sys.path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from utils.lora import extract_lora_child_module
+from utils.video_pipeline import export_to_video, unet_and_text_g_c
 
 already_printed_trainables = False
 

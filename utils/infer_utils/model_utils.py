@@ -1,6 +1,11 @@
 import torch
 import warnings
 from diffusers import DDIMScheduler, TextToVideoSDPipeline
+import os
+import sys
+# Add the directory of the current file to sys.path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from utils.lora_handler import LoraHandler
 from utils.video_pipeline import (
     load_primary_models, 

@@ -1,6 +1,17 @@
-from typing import Dict, Tuple
-from utils.dataset import VideoJsonDataset, SingleVideoDataset, ImageDataset, VideoFolderDataset
 import torch
+from typing import Dict, Tuple
+import os
+import sys
+# Add the directory of the current file to sys.path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from utils.dataset import (
+    VideoJsonDataset, 
+    SingleVideoDataset, 
+    ImageDataset, 
+    VideoFolderDataset
+)
+
 
 def get_train_dataset(dataset_types: Tuple[str], train_data: Dict, tokenizer):
     train_datasets = []
