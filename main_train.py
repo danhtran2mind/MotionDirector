@@ -7,51 +7,42 @@ from accelerate import Accelerator
 import torch
 import torch.nn.functional as F
 from torchvision import transforms
-
 from diffusers import DDIMScheduler, TextToVideoSDPipeline
 from diffusers.optimization import get_scheduler
 from utils.lora_handler import LoraHandler
 from utils.lora import extract_lora_child_module
-from utils.video_pipeline import (
-    load_primary_models, 
-    freeze_models, 
-    handle_memory_attention
-)
+from utils.video_pipeline import load_primary_models, freeze_models, handle_memory_attention
+from utils.train_utils.config import create_logging, accelerate_set_verbose, create_output_folders, load_config, logger
+from utils.train_utils.dataset_utils import get_train_dataset, extend_datasets, create_dataloader
+from utils.train_utils.model_utils import set_torch_2_attn, cast_to_gpu_and_type
+from utils.train_utils.optim_utils import get_optimizer, param_optim, create_optimizer_params
+from utils.train_utils.latent_utils import handle_cache_latents, tensor_to_vae_latent
+from utils.train_utils.train_utils import sample_noise, enforce_zero_terminal_snr, handle_trainable_modules, save_pipe, should_sample, unet_and_text_g_c
 
-from utils.train_utils.config import (
-    create_logging, 
-    accelerate_set_verbose, 
-    create_output_folders, 
-    load_config, logger
-)
+# Robust CUDA initialization with fallback to CPU
+try:
+    import torch_xla
+    import torch_xla.core.xla_model as xm
+    xla_available = True
+except ImportError:
+    xla_available = False
 
-from utils.train_utils.dataset_utils import (
-    get_train_dataset, 
-    extend_datasets, 
-    create_dataloader
-)
+try:
+    if torch.cuda.is_available():
+        DEVICE = "cuda"
+        torch_dtype = torch.float16
+    elif xla_available:
+        DEVICE = xm.xla_device()
+        torch_dtype = torch.float32
+    else:
+        DEVICE = "cpu"
+        torch_dtype = torch.float32
+except RuntimeError as e:
+    logger.warning(f"CUDA initialization failed: {e}. Falling back to CPU.")
+    DEVICE = "cpu"
+    torch_dtype = torch.float32
 
-from utils.train_utils.model_utils import (
-    set_torch_2_attn, 
-    cast_to_gpu_and_type
-)
-from utils.train_utils.optim_utils import (
-    get_optimizer, 
-    param_optim, 
-    create_optimizer_params
-)
-from utils.train_utils.latent_utils import (
-    handle_cache_latents, 
-    tensor_to_vae_latent
-)
-from utils.train_utils.train_utils import (
-    sample_noise, 
-    enforce_zero_terminal_snr, 
-    handle_trainable_modules, 
-    save_pipe, 
-    should_sample, 
-    unet_and_text_g_c
-)
+latents_device = "cpu" if DEVICE != "cuda" else "cuda"
 
 def finetune_unet(
     batch, step, unet, vae, text_encoder, noise_scheduler, cache_latents, use_offset_noise,
@@ -61,17 +52,16 @@ def finetune_unet(
     unet.train()
     handle_trainable_modules(unet, trainable_modules=("attn1", "attn2"), negation=[])
     if not cache_latents:
-        latents = tensor_to_vae_latent(batch["pixel_values"], vae)
+        latents = tensor_to_vae_latent(batch["pixel_values"].to(vae.device), vae)
     else:
-        latents = batch["latents"]
+        latents = batch["latents"].to(unet.device)
     use_offset_noise = use_offset_noise and not rescale_schedule
     noise = sample_noise(latents, offset_noise_strength, use_offset_noise)
     bsz = latents.shape[0]
-    timesteps = torch.randint(0, noise_scheduler.config.num_train_timesteps, (bsz,), device="cuda" if torch.cuda.is_available() else "cpu").long()
+    timesteps = torch.randint(0, noise_scheduler.config.num_train_timesteps, (bsz,), device=latents.device).long()
     noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
-    token_ids = batch['prompt_ids']
+    token_ids = batch['prompt_ids'].to(text_encoder.device)
     encoder_hidden_states = text_encoder(token_ids)[0]
-    detached_encoder_state = encoder_hidden_states.clone().detach()
     target = noise if noise_scheduler.config.prediction_type == "epsilon" else noise_scheduler.get_velocity(latents, noise, timesteps)
     mask_spatial_lora = random.uniform(0, 1) < 0.2 and train_temporal_lora
     mask_temporal_lora = not train_temporal_lora
@@ -96,17 +86,17 @@ def finetune_unet(
                 lora_i.scale = 0.
         ran_idx = torch.randint(0, noisy_latents.shape[2], (1,)).item()
         if random.uniform(0, 1) < random_hflip_img:
-            pixel_values_spatial = transforms.functional.hflip(batch["pixel_values"][:, ran_idx, :, :, :]).unsqueeze(1)
+            pixel_values_spatial = transforms.functional.hflip(batch["pixel_values"][:, ran_idx, :, :, :]).unsqueeze(1).to(vae.device)
             latents_spatial = tensor_to_vae_latent(pixel_values_spatial, vae)
             noise_spatial = sample_noise(latents_spatial, offset_noise_strength, use_offset_noise)
             noisy_latents_input = noise_scheduler.add_noise(latents_spatial, noise_spatial, timesteps)
             target_spatial = noise_spatial
-            model_pred_spatial = unet(noisy_latents_input, timesteps, encoder_hidden_states=detached_encoder_state).sample
+            model_pred_spatial = unet(noisy_latents_input, timesteps, encoder_hidden_states=encoder_hidden_states).sample
             loss_spatial = F.mse_loss(model_pred_spatial[:, :, 0, :, :].float(), target_spatial[:, :, 0, :, :].float(), reduction="mean")
         else:
-            noisy_latents_input = noisy_latents[:, :, ran_idx, :, :]
+            noisy_latents_input = noisy_latents[:, :, ran_idx, :, :].unsqueeze(2)
             target_spatial = target[:, :, ran_idx, :, :]
-            model_pred_spatial = unet(noisy_latents_input.unsqueeze(2), timesteps, encoder_hidden_states=detached_encoder_state).sample
+            model_pred_spatial = unet(noisy_latents_input, timesteps, encoder_hidden_states=encoder_hidden_states).sample
             loss_spatial = F.mse_loss(model_pred_spatial[:, :, 0, :, :].float(), target_spatial.float(), reduction="mean")
     if mask_temporal_lora:
         loras = extract_lora_child_module(unet, target_replace_module=["TransformerTemporalModel"])
@@ -117,7 +107,7 @@ def finetune_unet(
         loras = extract_lora_child_module(unet, target_replace_module=["TransformerTemporalModel"])
         for lora_i in loras:
             lora_i.scale = 1.
-        model_pred = unet(noisy_latents, timesteps, encoder_hidden_states=detached_encoder_state).sample
+        model_pred = unet(noisy_latents, timesteps, encoder_hidden_states=encoder_hidden_states).sample
         loss_temporal = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
         beta = 1
         alpha = (beta ** 2 + 1) ** 0.5
@@ -126,6 +116,8 @@ def finetune_unet(
         target_decent = alpha * target - beta * target[:, :, ran_idx, :, :].unsqueeze(2)
         loss_ad_temporal = F.mse_loss(model_pred_decent.float(), target_decent.float(), reduction="mean")
         loss_temporal = loss_temporal + loss_ad_temporal
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
     return loss_spatial, loss_temporal, latents, noise
 
 def main(
@@ -139,7 +131,7 @@ def main(
     extra_train_data: list=[],
     dataset_types: tuple=('json',),
     validation_steps: int=100,
-    trainable_modules: tuple=None,
+    trainable_modules: tuple=("attn1", "attn2"),
     extra_unet_params: dict=None,
     train_batch_size: int=1,
     max_train_steps: int=500,
@@ -151,13 +143,13 @@ def main(
     adam_weight_decay: float=1e-2,
     adam_epsilon: float=1e-08,
     gradient_accumulation_steps: int=1,
-    gradient_checkpointing: bool=False,
-    text_encoder_gradient_checkpointing: bool=False,
+    gradient_checkpointing: bool=True,
+    text_encoder_gradient_checkpointing: bool=True,
     checkpointing_steps: int=500,
     resume_from_checkpoint: str=None,
     resume_step: int=None,
     mixed_precision: str="fp16",
-    use_8bit_adam: bool=False,
+    use_8bit_adam: bool=True,
     enable_xformers_memory_efficient_attention: bool=True,
     enable_torch_2_attn: bool=False,
     seed: int=None,
@@ -165,13 +157,13 @@ def main(
     rescale_schedule: bool=False,
     offset_noise_strength: float=0.1,
     extend_dataset: bool=False,
-    cache_latents: bool=False,
+    cache_latents: bool=True,
     cached_latent_dir: str=None,
-    use_unet_lora: bool=False,
+    use_unet_lora: bool=True,
     unet_lora_modules: tuple=[],
     text_encoder_lora_modules: tuple=[],
     save_pretrained_model: bool=True,
-    lora_rank: int=16,
+    lora_rank: int=8,
     lora_path: str='',
     lora_unet_dropout: float=0.1,
     logger_type: str='tensorboard',
@@ -197,7 +189,7 @@ def main(
     if extra_train_data:
         for dataset in extra_train_data:
             d_t, t_d = dataset['dataset_types'], dataset['train_data']
-            train_datasets += get_train_dataset(d_t, t_d, tokenizer)
+            train_datasets += get_train_dataset(d_t, t_d | train_data, tokenizer)
     extend_datasets(train_datasets, ['train_data', 'frames', 'image_dir', 'video_files'], extend_dataset)
     train_dataset = train_datasets[0] if len(train_datasets) == 1 else torch.utils.data.ConcatDataset(train_datasets)
     train_dataloader = create_dataloader(train_dataset, train_batch_size)
@@ -208,7 +200,6 @@ def main(
     if cached_data_loader:
         train_dataloader = cached_data_loader
     extra_unet_params = extra_unet_params or {}
-    extra_text_encoder_params = extra_unet_params
     lora_manager_temporal = None
     unet_lora_params_temporal, unet_negation_temporal = [], []
     optimizer_temporal, lr_scheduler_temporal = None, None
@@ -221,7 +212,7 @@ def main(
         optimizer_temporal = optimizer_cls(
             create_optimizer_params([
                 param_optim(unet_lora_params_temporal, use_unet_lora, is_lora=True,
-                            extra_params={**{"lr": learning_rate}, **extra_text_encoder_params})
+                            extra_params={**{"lr": learning_rate}, **extra_unet_params})
             ], learning_rate),
             lr=learning_rate, betas=(adam_beta1, adam_beta2), weight_decay=adam_weight_decay, eps=adam_epsilon
         )
@@ -243,7 +234,7 @@ def main(
         optimizer_spatial = optimizer_cls(
             create_optimizer_params([
                 param_optim(unet_lora_params_spatial, use_unet_lora, is_lora=True,
-                            extra_params={**{"lr": learning_rate}, **extra_text_encoder_params})
+                            extra_params={**{"lr": learning_rate}, **extra_unet_params})
             ], learning_rate),
             lr=learning_rate, betas=(adam_beta1, adam_beta2), weight_decay=adam_weight_decay, eps=adam_epsilon
         )
@@ -305,16 +296,14 @@ def main(
                 if not mask_spatial_lora and loss_spatial is not None:
                     avg_loss_spatial = accelerator.gather(loss_spatial.repeat(train_batch_size)).mean()
                     train_loss_spatial += avg_loss_spatial.item() / gradient_accumulation_steps
-                if not mask_temporal_lora and train_temporal_lora and loss_temporal is not None:
-                    avg_loss_temporal = accelerator.gather(loss_temporal.repeat(train_batch_size)).mean()
-                    train_loss_temporal += avg_loss_temporal.item() / gradient_accumulation_steps
-                if not mask_spatial_lora and loss_spatial is not None:
                     accelerator.backward(loss_spatial, retain_graph=True)
                     if spatial_lora_num == 1:
                         optimizer_spatial_list[0].step()
                     else:
                         optimizer_spatial_list[step].step()
                 if not mask_temporal_lora and train_temporal_lora and loss_temporal is not None:
+                    avg_loss_temporal = accelerator.gather(loss_temporal.repeat(train_batch_size)).mean()
+                    train_loss_temporal += avg_loss_temporal.item() / gradient_accumulation_steps
                     accelerator.backward(loss_temporal)
                     optimizer_temporal.step()
                 if spatial_lora_num == 1:
@@ -335,6 +324,8 @@ def main(
                         unet_lora_modules, text_encoder_lora_modules, is_checkpoint=True,
                         save_pretrained_model=save_pretrained_model
                     )
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
                 if should_sample(global_step, validation_steps, validation_data):
                     if accelerator.is_main_process:
                         with accelerator.autocast():
@@ -353,7 +344,7 @@ def main(
                             )
                             diffusion_scheduler = DDIMScheduler.from_config(pipeline.scheduler.config)
                             pipeline.scheduler = diffusion_scheduler
-                            prompt_list = text_prompt if not validation_data.get('prompt') else validation_data['prompt']
+                            prompt_list = [text_prompt] if not validation_data.get('prompt') else validation_data['prompt']
                             for prompt in prompt_list:
                                 save_filename = f"{global_step}_{prompt.replace('.', '')}"
                                 out_file = f"{output_dir}/samples/{save_filename}.mp4"
@@ -369,7 +360,8 @@ def main(
                                 export_to_video(video_frames, out_file, train_data.get('fps', 8))
                                 logger.info(f"Saved a new sample to {out_file}")
                             del pipeline
-                            torch.cuda.empty_cache()
+                            if torch.cuda.is_available():
+                                torch.cuda.empty_cache()
                         unet_and_text_g_c(unet, text_encoder, gradient_checkpointing, text_encoder_gradient_checkpointing)
             if loss_temporal is not None:
                 accelerator.log({"loss_temporal": loss_temporal.detach().item()}, step=step)
@@ -383,6 +375,8 @@ def main(
             unet_lora_modules, text_encoder_lora_modules, is_checkpoint=False,
             save_pretrained_model=save_pretrained_model
         )
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
     accelerator.end_training()
 
 if __name__ == "__main__":

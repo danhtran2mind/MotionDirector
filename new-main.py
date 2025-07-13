@@ -1,3 +1,7 @@
+"""
+This is current test training version
+"""
+
 import argparse
 import math
 import random
