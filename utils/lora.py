@@ -2,7 +2,7 @@ import json
 import math
 from itertools import groupby
 import os
-from typing import Callable, Dict, List, Optional, Set, Tuple, Type, Uniona
+from typing import Callable, Dict, List, Optional, Set, Tuple, Type, Union
 
 import numpy as np
 import PIL
