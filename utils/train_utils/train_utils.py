@@ -96,7 +96,7 @@ def save_pipe(
         unet, text_encoder = accelerator.prepare(unet, text_encoder)
         models_to_cast_back = [(unet, u_dtype), (text_encoder, t_dtype), (vae, v_dtype)]
         [x[0].to(accelerator.device, dtype=x[1]) for x in models_to_cast_back]
-    logger.info(f"Saved model at {save_path} on step {global_step}")
+    logging.info(f"Saved model at {save_path} on step {global_step}")
     del pipeline, unet_out, text_encoder_out
     torch.cuda.empty_cache()
     gc.collect()
