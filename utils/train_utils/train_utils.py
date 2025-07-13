@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 import random
+import logging
 from torchvision import transforms
 from diffusers import DDIMScheduler, TextToVideoSDPipeline
 import copy
