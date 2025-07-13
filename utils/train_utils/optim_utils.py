@@ -45,3 +45,46 @@ def get_optimizer(use_8bit_adam):
         return bnb.optim.AdamW8bit
     else:
         return torch.optim.AdamW
+
+def param_optim(model, condition, extra_params=None, is_lora=False, negation=None):
+    extra_params = extra_params if len(extra_params.keys()) > 0 else None
+    return {
+        "model": model,
+        "condition": condition,
+        'extra_params': extra_params,
+        'is_lora': is_lora,
+        "negation": negation
+    }
+
+def create_optimizer_params(model_list, lr):
+    import itertools
+    optimizer_params = []
+
+    for optim in model_list:
+        model, condition, extra_params, is_lora, negation = optim.values()
+        # Check if we are doing LoRA training.
+        if is_lora and condition and isinstance(model, list):
+            params = create_optim_params(
+                params=itertools.chain(*model),
+                extra_params=extra_params
+            )
+            optimizer_params.append(params)
+            continue
+
+        if is_lora and condition and not isinstance(model, list):
+            for n, p in model.named_parameters():
+                if 'lora' in n:
+                    params = create_optim_params(n, p, lr, extra_params)
+                    optimizer_params.append(params)
+            continue
+
+        # If this is true, we can train it.
+        if condition:
+            for n, p in model.named_parameters():
+                should_negate = 'lora' in n and not is_lora
+                if should_negate: continue
+
+                params = create_optim_params(n, p, lr, extra_params)
+                optimizer_params.append(params)
+
+    return optimizer_params
