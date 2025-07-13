@@ -150,12 +150,28 @@ def create_output_folders(output_dir):
     return out_dir
 
 
+# def load_primary_models(pretrained_model_path):
+#     noise_scheduler = DDIMScheduler.from_pretrained(pretrained_model_path, subfolder="scheduler")
+#     tokenizer = CLIPTokenizer.from_pretrained(pretrained_model_path, subfolder="tokenizer")
+#     text_encoder = CLIPTextModel.from_pretrained(pretrained_model_path, subfolder="text_encoder")
+#     vae = AutoencoderKL.from_pretrained(pretrained_model_path, subfolder="vae")
+#     unet = UNet3DConditionModel.from_pretrained(pretrained_model_path, subfolder="unet")
+#     return noise_scheduler, tokenizer, text_encoder, vae, unet
+
 def load_primary_models(pretrained_model_path):
     noise_scheduler = DDIMScheduler.from_pretrained(pretrained_model_path, subfolder="scheduler")
     tokenizer = CLIPTokenizer.from_pretrained(pretrained_model_path, subfolder="tokenizer")
     text_encoder = CLIPTextModel.from_pretrained(pretrained_model_path, subfolder="text_encoder")
     vae = AutoencoderKL.from_pretrained(pretrained_model_path, subfolder="vae")
     unet = UNet3DConditionModel.from_pretrained(pretrained_model_path, subfolder="unet")
+    print(f"UNet config details: in_channels={unet.config.in_channels}, "
+          f"sample_size={unet.config.sample_size}, "
+          f"block_out_channels={unet.config.block_out_channels}, "
+          f"down_block_types={unet.config.down_block_types}, "
+          f"up_block_types={unet.config.up_block_types}")
+    for name, module in unet.named_modules():
+        if "proj" in name and isinstance(module, torch.nn.Linear):
+            print(f"Linear layer {name}: in_features={module.in_features}, out_features={module.out_features}")
     return noise_scheduler, tokenizer, text_encoder, vae, unet
 
 
