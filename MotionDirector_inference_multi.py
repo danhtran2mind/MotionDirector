@@ -13,11 +13,17 @@ from torch.nn.functional import interpolate
 from tqdm import trange
 import random
 
-from MotionDirector_train import export_to_video, handle_memory_attention, load_primary_models, unet_and_text_g_c, freeze_models
 from utils.lora_handler import LoraHandler
 from utils.ddim_utils import ddim_inversion
 import imageio
 
+from utils.video_pipeline import (
+    export_to_video, 
+    handle_memory_attention, 
+    load_primary_models, 
+    unet_and_text_g_c, 
+    freeze_models
+)
 
 def initialize_pipeline(
     model: str,
