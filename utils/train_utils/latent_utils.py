@@ -1,6 +1,7 @@
 import os
 import sys
 import torch
+from typing import Optional
 from einops import rearrange
 from diffusers import TextToVideoSDPipeline, DDIMScheduler
 from tqdm.auto import tqdm
