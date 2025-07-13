@@ -12,6 +12,18 @@ from utils.video_pipeline import load_primary_models, freeze_models, handle_memo
 def is_attn(name: str) -> bool:
     return 'attn1' in name or 'attn2' in name
 
+def create_optim_params(name='param', params=None, lr=5e-6, extra_params=None):
+    params = {
+        "name": name,
+        "params": params,
+        "lr": lr
+    }
+    if extra_params is not None:
+        for k, v in extra_params.items():
+            params[k] = v
+
+    return params
+
 def set_processors(attentions):
     for attn in attentions:
         attn.set_processor(AttnProcessor2_0())
