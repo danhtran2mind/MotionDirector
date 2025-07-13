@@ -142,7 +142,7 @@ def export_to_video(video_frames, output_path, fps):
     writer.close()
 
 
-def create_output_folders(output_dir, config):
+def create_output_folders(output_dir):
     now = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
     out_dir = os.path.join(output_dir, f"train_{now}")
     os.makedirs(out_dir, exist_ok=True)
@@ -528,7 +528,7 @@ def main(
     create_logging(logging, logger, accelerator)
     accelerate_set_verbose(accelerator)
     if accelerator.is_main_process:
-        output_dir = create_output_folders(output_dir, OmegaConf.create(locals()))
+        output_dir = create_output_folders(output_dir)
     noise_scheduler, tokenizer, text_encoder, vae, unet = load_primary_models(pretrained_model_path)
     print(f"UNet config: {unet.config}")
     freeze_models([vae, text_encoder, unet])
