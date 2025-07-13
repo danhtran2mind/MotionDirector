@@ -302,19 +302,19 @@ def main(
                         use_offset_noise, rescale_schedule, offset_noise_strength, random_hflip_img,
                         train_temporal_lora, spatial_lora_num, validation_data
                     )
-                if not mask_spatial_lora:
+                if not mask_spatial_lora and loss_spatial is not None:
                     avg_loss_spatial = accelerator.gather(loss_spatial.repeat(train_batch_size)).mean()
                     train_loss_spatial += avg_loss_spatial.item() / gradient_accumulation_steps
-                if not mask_temporal_lora and train_temporal_lora:
+                if not mask_temporal_lora and train_temporal_lora and loss_temporal is not None:
                     avg_loss_temporal = accelerator.gather(loss_temporal.repeat(train_batch_size)).mean()
                     train_loss_temporal += avg_loss_temporal.item() / gradient_accumulation_steps
-                if not mask_spatial_lora:
+                if not mask_spatial_lora and loss_spatial is not None:
                     accelerator.backward(loss_spatial, retain_graph=True)
                     if spatial_lora_num == 1:
                         optimizer_spatial_list[0].step()
                     else:
                         optimizer_spatial_list[step].step()
-                if not mask_temporal_lora and train_temporal_lora:
+                if not mask_temporal_lora and train_temporal_lora and loss_temporal is not None:
                     accelerator.backward(loss_temporal)
                     optimizer_temporal.step()
                 if spatial_lora_num == 1:
