@@ -380,7 +380,7 @@ def main(
                             del pipeline
                             torch.cuda.empty_cache()
                             # Offload VAE to CPU after validation
-                            vae.to("cpu")
+                            vae.to("cuda" if torch.cuda.is_available() else "cpu")
                             torch.cuda.empty_cache()
                         unet_and_text_g_c(unet, text_encoder, gradient_checkpointing, text_encoder_gradient_checkpointing)
                         # Move VAE back to GPU if needed
