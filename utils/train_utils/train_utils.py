@@ -5,6 +5,7 @@ import logging
 import math
 import gc
 import copy
+import os
 from torchvision import transforms
 from diffusers import DDIMScheduler, TextToVideoSDPipeline
 import numpy as np
