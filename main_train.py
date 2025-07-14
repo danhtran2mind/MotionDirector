@@ -38,14 +38,25 @@ except ImportError:
 
 from utils.lora_handler import LoraHandler
 from utils.lora import extract_lora_child_module
-from utils.train_utils.config import create_logging, accelerate_set_verbose, create_output_folders, load_config
+from utils.train_utils.config import (
+    create_logging, accelerate_set_verbose, 
+    create_output_folders, load_config
+)
 from utils.train_utils.dataset_utils import get_train_dataset, extend_datasets, create_dataloader
 from utils.train_utils.model_utils import set_torch_2_attn, cast_to_gpu_and_type
 from utils.train_utils.optim_utils import get_optimizer, param_optim, create_optimizer_params
 from utils.train_utils.latent_utils import handle_cache_latents, tensor_to_vae_latent
-from utils.train_utils.train_utils import sample_noise, enforce_zero_terminal_snr, handle_trainable_modules, save_pipe, should_sample, unet_and_text_g_c, export_to_video
+from utils.train_utils.train_utils import (
+    sample_noise, enforce_zero_terminal_snr,
+    handle_trainable_modules, save_pipe,
+    should_sample, export_to_video
+)
 from utils.ddim_utils import ddim_inversion
 from utils.dataset import CachedDataset
+from utils.video_pipeline import (
+    load_primary_models, freeze_models, handle_memory_attention, 
+    export_to_video, unet_and_text_g_c
+)
 
 # Device and dtype setup
 if torch.cuda.is_available():
