@@ -6,6 +6,7 @@ from einops import rearrange
 from diffusers import TextToVideoSDPipeline, DDIMScheduler
 from tqdm.auto import tqdm
 import copy
+import gc
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from utils.ddim_utils import ddim_inversion
