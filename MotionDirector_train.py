@@ -31,6 +31,7 @@ from diffusers.optimization import get_scheduler
 from diffusers.utils.import_utils import is_xformers_available
 from diffusers.models.attention_processor import AttnProcessor2_0, Attention
 from diffusers.models.attention import BasicTransformerBlock
+from diffusers.models.modeling_outputs import Transformer2DModelOutput  # Updated import
 
 from transformers import CLIPTextModel, CLIPTokenizer
 from transformers.models.clip.modeling_clip import CLIPEncoder
@@ -426,11 +427,11 @@ def main(
         output_dir: str,
         train_data: Dict,
         validation_data: Dict,
-        single_spatial_lora: bool = True,  # Default to single spatial LoRA
+        single_spatial_lora: bool = True,
         train_temporal_lora: bool = True,
         random_hflip_img: float = -1,
         extra_train_data: list = [],
-        max_spatial_loras: int = 10,  # Limit number of spatial LoRAs
+        max_spatial_loras: int = 10,
         dataset_types: Tuple[str] = ('json'),
         validation_steps: int = 100,
         trainable_modules: Tuple[str] = None,
@@ -445,13 +446,13 @@ def main(
         adam_weight_decay: float = 1e-2,
         adam_epsilon: float = 1e-08,
         gradient_accumulation_steps: int = 1,
-        gradient_checkpointing: bool = True,  # Enable by default
-        text_encoder_gradient_checkpointing: bool = True,  # Enable by default
+        gradient_checkpointing: bool = True,
+        text_encoder_gradient_checkpointing: bool = True,
         checkpointing_steps: int = 500,
         resume_from_checkpoint: Optional[str] = None,
         resume_step: Optional[int] = None,
         mixed_precision: Optional[str] = "fp16",
-        use_8bit_adam: bool = True,  # Enable 8-bit Adam for memory efficiency
+        use_8bit_adam: bool = True,
         enable_xformers_memory_efficient_attention: bool = True,
         enable_torch_2_attn: bool = False,
         seed: Optional[int] = None,
@@ -459,7 +460,7 @@ def main(
         rescale_schedule: bool = False,
         offset_noise_strength: float = 0.1,
         extend_dataset: bool = False,
-        cache_latents: bool = True,  # Enable latent caching
+        cache_latents: bool = True,
         cached_latent_dir=None,
         use_unet_lora: bool = True,
         unet_lora_modules: Tuple[str] = [],
@@ -471,6 +472,7 @@ def main(
         logger_type: str = 'tensorboard',
         **kwargs
 ):
+    checkpointing_steps = int(checkpointing_steps)  # Convert to integer
     *_, config = inspect.getargvalues(inspect.currentframe())
     accelerator = Accelerator(
         gradient_accumulation_steps=gradient_accumulation_steps,
@@ -531,7 +533,7 @@ def main(
     if single_spatial_lora:
         spatial_lora_num = 1
     else:
-        spatial_lora_num = min(train_dataset.__len__(), max_spatial_loras)  # Limit spatial LoRAs
+        spatial_lora_num = min(train_dataset.__len__(), max_spatial_loras)
     lora_managers_spatial = []
     unet_lora_params_spatial_list = []
     optimizer_spatial_list = []
@@ -564,7 +566,7 @@ def main(
         train_dataset,
         batch_size=train_batch_size,
         shuffle=False,
-        num_workers=0,  # Reduce memory usage
+        num_workers=0,
         pin_memory=True if DEVICE == "cuda" else False
     )
     cached_data_loader = handle_cache_latents(
@@ -650,7 +652,7 @@ def main(
             if spatial_lora_num == 1:
                 loras[0].scale = 1.
             else:
-                lora_idx = step % spatial_lora_num  # Cycle through LoRAs
+                lora_idx = step % spatial_lora_num
                 loras[lora_idx].scale = 1.
             loras_temporal = extract_lora_child_module(unet, target_replace_module=["TransformerTemporalModel"])
             for lora_i in loras_temporal:
