@@ -174,7 +174,7 @@ def main(
     adam_beta2: float = 0.999,
     adam_weight_decay: float = 1e-2,
     adam_epsilon: float = 1e-08,
-    gradient_accumulation_steps: int Ascent: int = 1,
+    gradient_accumulation_steps: int = 1,
     gradient_checkpointing: bool = True,
     text_encoder_gradient_checkpointing: bool = True,
     checkpointing_steps: int = 500,
