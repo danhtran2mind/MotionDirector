@@ -1,17 +1,10 @@
 import torch
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List
 import os
 import sys
-# Add the directory of the current file to sys.path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from utils.dataset import (
-    VideoJsonDataset, 
-    SingleVideoDataset, 
-    ImageDataset, 
-    VideoFolderDataset
-)
-
+from utils.dataset import VideoJsonDataset, SingleVideoDataset, ImageDataset, VideoFolderDataset
 
 def get_train_dataset(dataset_types: Tuple[str], train_data: Dict, tokenizer):
     train_datasets = []
@@ -24,7 +17,7 @@ def get_train_dataset(dataset_types: Tuple[str], train_data: Dict, tokenizer):
     else:
         raise ValueError("Dataset type not found: 'json', 'single_video', 'folder', 'image'")
 
-def extend_datasets(datasets, dataset_items, extend=False):
+def extend_datasets(datasets: List, dataset_items: List[str], extend: bool = False):
     biggest_data_len = max(x.__len__() for x in datasets)
     extended = []
     for dataset in datasets:
@@ -42,9 +35,11 @@ def extend_datasets(datasets, dataset_items, extend=False):
                     print(f"New {item} dataset length: {dataset.__len__()}")
                     extended.append(item)
 
-def create_dataloader(dataset, train_batch_size, shuffle=False):
+def create_dataloader(dataset, train_batch_size: int, shuffle: bool = False):
     return torch.utils.data.DataLoader(
         dataset,
         batch_size=train_batch_size,
-        shuffle=shuffle
+        shuffle=shuffle,
+        num_workers=0,
+        pin_memory=True if torch.cuda.is_available() else False
     )

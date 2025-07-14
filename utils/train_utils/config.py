@@ -31,7 +31,8 @@ def create_output_folders(output_dir, config):
     out_dir = os.path.join(output_dir, f"train_{now}")
     os.makedirs(out_dir, exist_ok=True)
     os.makedirs(f"{out_dir}/samples", exist_ok=True)
+    OmegaConf.save(config, os.path.join(out_dir, 'config.yaml'))
     return out_dir
 
 def load_config(config_path):
-    return OmegaConf.load(config_path)  
+    return OmegaConf.load(config_path)
