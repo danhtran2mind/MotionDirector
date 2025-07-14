@@ -1,4 +1,5 @@
 import argparse
+import random
 import os
 import platform
 import re
