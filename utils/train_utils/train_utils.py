@@ -9,6 +9,7 @@ from torchvision import transforms
 from diffusers import DDIMScheduler, TextToVideoSDPipeline
 import numpy as np
 import imageio
+from typing import Dict, Tuple, List
 
 from utils.lora import extract_lora_child_module
 
