@@ -27,7 +27,6 @@ def prepare_input_latents(
 ) -> Tensor:
     scale = pipe.vae_scale_factor
     shape = (batch_size, pipe.unet.config.in_channels, num_frames, height // scale, width // scale)
-    print("shape:", shape)
     
     if noise_prior > 0.:
         cached_latents = torch.load(latents_path, map_location=torch.device(device))
@@ -39,35 +38,26 @@ def prepare_input_latents(
         
         if 'inversion_noise' not in cached_latents:
             latents = inverse_video(pipe, cached_latents['latents'].unsqueeze(0), 50).squeeze(0)
-            print("latents1.shape:", latents.shape)
         else:
             latents = cached_latents['inversion_noise'].unsqueeze(0)
-            print("latents2.shape:", latents.shape)
         
         if latents.shape[0] != batch_size:
             latents = latents.repeat(batch_size, 1, 1, 1, 1)
-            print("latents3.shape:", latents.shape)
         
         if latents.shape[2] != num_frames:
             latents = rearrange(latents, "b c f h w -> b c h w f")
             latents = interpolate(latents, size=(latents.shape[2], latents.shape[3], num_frames), mode='trilinear', align_corners=False)
             latents = rearrange(latents, "b c h w f -> b c f h w")
-            print("latents_temporal.shape:", latents.shape)
         
         if latents.shape[3:] != shape[3:]:
             latents = interpolate(rearrange(latents, "b c f h w -> (b f) c h w", b=batch_size), 
                                 size=(height // scale, width // scale), mode='bilinear')
-            print("latents4.shape:", latents.shape)
             latents = rearrange(latents, "(b f) c h w -> b c f h w", b=batch_size)
-            print("latents5.shape:", latents.shape)
         
         noise = torch.randn_like(latents, dtype=torch.float16)
-        print("noise.shape:", noise.shape)
         latents = (noise_prior ** 0.5) * latents + ((1 - noise_prior) ** 0.5) * noise
-        print("latents.shape:", latents.shape)
     else:
         latents = torch.randn(shape, dtype=torch.float16)
-        print("latents.shape:", latents.shape)
     
     return latents
 
