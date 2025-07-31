@@ -4,6 +4,8 @@ import os
 import imageio
 from typing import List, Dict, Optional, Tuple
 import sys
+import uuid
+
 # Add the directory of the current file to sys.path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -34,7 +36,8 @@ def inference(
     repeat_num: int = 1,
     fps: int = 8,
     out_name: str = "./outputs/inference",
-    is_multi: bool = False
+    is_multi: bool = False,
+    no_prompt_name: bool = False
 ) -> List:
     from model_utils import initialize_pipeline
     from latent_utils import prepare_input_latents
@@ -72,8 +75,12 @@ def inference(
                     guidance_scale=guidance_scale,
                     latents=init_latents
                 ).frames
-                
-            os.makedirs(os.path.dirname(out_name), exist_ok=True)
+            
+            out_dir = os.path.dirname(out_name)
+            os.makedirs(out_dir, exist_ok=True)
+            if no_prompt_name:
+                out_name = os.path.join(out_dir, f"{uuid.uuid4()}_{random_seed}")
+
             export_to_video(video_frames, f"{out_name}_{random_seed}.mp4", fps)
             # imageio.mimsave(f"{out_name}_{random_seed}.gif", video_frames, 'GIF', duration=1000 * 1 / fps, loop=0)
             video_frames_list.append(video_frames)
