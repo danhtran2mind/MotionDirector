@@ -27,6 +27,7 @@ def parse_args(is_multi: bool = False) -> argparse.Namespace:
     parser.add_argument("-np", "--noise_prior", type=float, default=0., help="Scale of the influence of inversion noise")
     parser.add_argument("-ci", "--checkpoint_index", type=int, default=None, help="The index of checkpoint, e.g., 300")
     parser.add_argument("-rn", "--repeat_num", type=int, default=1, help="Number of results to generate with the same prompt")
+    parser.add_argument("-npn", "--no-prompt-name", action="store_true", default=True, help="Use a generic filename instead of a prompt-based filename")
     
     if is_multi:
         parser.add_argument("-slp", "--spatial_path_folder", type=str, default=None, help="Path to spatial LoRA checkpoint")
