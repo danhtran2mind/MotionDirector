@@ -29,5 +29,6 @@ if __name__ == "__main__":
         repeat_num=args.repeat_num,
         fps=args.fps,
         out_name=out_name,
-        is_multi=False
+        is_multi=False,
+        no_prompt_name=args.no_prompt_name
     )
